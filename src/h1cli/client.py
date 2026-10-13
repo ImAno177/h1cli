@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import ssl
@@ -72,11 +73,10 @@ class H1Client:
         if body is not None:
             data = json.dumps(body).encode("utf-8")
             headers["Content-Type"] = "application/json"
+        cred = base64.b64encode(f"{self.username}:{self.token}".encode("utf-8")).decode("ascii")
+        headers["Authorization"] = f"Basic {cred}"
         req = urllib.request.Request(url, data=data, headers=headers, method=method)
-        password_mgr = urllib.request.HTTPPasswordMgrWithDefaultRealm()
-        password_mgr.add_password(None, self.base_url, self.username, self.token)
-        auth = urllib.request.HTTPBasicAuthHandler(password_mgr)
-        opener = self._opener or urllib.request.build_opener(auth)
+        opener = self._opener or urllib.request.build_opener()
         try:
             with opener.open(req, timeout=60) as resp:
                 raw = resp.read()
