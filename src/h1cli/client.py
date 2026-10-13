@@ -12,6 +12,7 @@ from typing import Any, Callable, Mapping, MutableMapping, Optional
 
 
 BASE_URL = "https://api.hackerone.com/v1"
+PAGE_CAP_FLOOR = 50  # smallest server-side page cap seen (hacktivity)
 MAX_PAGES = 50  # 50 pages x 100 items; well under the ~600 reads/min limit
 OPEN_STATES = frozenset(
     {
@@ -120,13 +121,26 @@ class H1Client:
         size: int = 100,
         max_pages: int = MAX_PAGES,
     ) -> list:
-        """Call fetch_page(page, size) until links.next is gone; capped at max_pages."""
+        """Fetch pages until the last one; capped at max_pages.
+
+        Follows links.next when the API sends it. Some endpoints (live: hacktivity)
+        never send links.next and cap page size below the request (50 vs 100), so
+        without links.next a page counts as full, and we go on, when it holds at
+        least min(size, PAGE_CAP_FLOOR) items. Stops if a page repeats the previous one.
+        """
         items: list = []
+        prev_ids: Optional[list] = None
         for page in range(1, max_pages + 1):
             data = fetch_page(page, size) or {}
             batch = list(data.get("data") or [])
+            ids = [b.get("id") if isinstance(b, dict) else b for b in batch]
+            if not batch or ids == prev_ids:
+                break
             items.extend(batch)
-            if not batch or not (data.get("links") or {}).get("next"):
+            prev_ids = ids
+            if (data.get("links") or {}).get("next"):
+                continue
+            if len(batch) < min(size, PAGE_CAP_FLOOR):
                 break
         return items
 

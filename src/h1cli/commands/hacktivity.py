@@ -21,6 +21,6 @@ def cmd_hacktivity(client: H1Client, args: argparse.Namespace) -> int:
         a = r.get("attributes") or {}
         prog = _program_handle(r)
         print(
-            f"{r.get('id')}\t{a.get('severity_rating') or '-'}\t{prog}\t{_trunc(a.get('title') or '', 60)}"
+            f"{r.get('id')}\t{a.get('severity_rating') or '-'}\t{prog}\t{_trunc(a.get('title') or '(undisclosed)', 60)}"
         )
     return 0

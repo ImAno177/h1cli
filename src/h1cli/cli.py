@@ -116,7 +116,10 @@ def build_parser() -> argparse.ArgumentParser:
     pay.set_defaults(func=cmd_payouts)
 
     hk = sub.add_parser("hacktivity", help="Public hacktivity search", parents=paged)
-    hk.add_argument("--query", help="Lucene queryString")
+    hk.add_argument(
+        "--query",
+        help="Lucene queryString, e.g. 'team:HackerOne AND disclosed:true' (team = program name)",
+    )
     hk.add_argument("--sort", help="e.g. -disclosed_at")
     hk.set_defaults(func=cmd_hacktivity)
 

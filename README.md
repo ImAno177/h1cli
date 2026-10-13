@@ -61,7 +61,8 @@ h1cli programs get tron_dao --policy | head
 h1cli scopes tron_dao
 # export in-scope, bounty-eligible web targets (all pages) for recon tools
 h1cli scopes tron_dao --targets --bounty-only --type URL,WILDCARD > targets.txt
-h1cli hacktivity --query 'team:tron_dao' --size 10
+# `team:` takes the program *name* (not the handle); quote names with spaces
+h1cli hacktivity --query 'team:HackerOne AND severity_rating:critical' --size 10
 ```
 
 ## Out of scope for this CLI (hacker token)

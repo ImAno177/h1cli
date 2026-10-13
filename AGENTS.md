@@ -55,7 +55,7 @@ Raise HTTP errors with `opener.handler = http_error(429)`.
 - **Commits:** Conventional Commits (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`), one small change per commit. Run `pytest -q` and see it pass before pushing straight to `main`.
 - **Destructive or submitting commands** (create, submit, delete) refuse to act without `--confirm`. They return exit code 2 and make no request. Add a test that proves no request was sent.
 - **Path parameters:** wrap every value placed in a URL path with `_seg()` in `client.py` (`quote(x, safe="")`). Numeric IDs are declared as `type=int` in argparse.
-- **Pagination:** list endpoints take `page`/`size`. Fetch everything with `client.paginate(lambda p, s: client.method(..., page=p, size=s))`. It follows `links.next` and stops at `MAX_PAGES`. In commands, call `_pages(client, args, fetch_page)` so that `--all` works.
+- **Pagination:** list endpoints take `page`/`size`. Fetch everything with `client.paginate(lambda p, s: client.method(..., page=p, size=s))`. It follows `links.next` (or, when the API omits it, keeps going while pages are full), skips repeated pages and stops at `MAX_PAGES`. In commands, call `_pages(client, args, fetch_page)` so that `--all` works.
 - **Shared flags:** use the parent parsers in `build_parser()`. `parents=[json_p]` adds `--json`, and `parents=paged` adds `--json --page --size --all`.
 - **Exit codes:** 0 ok, 1 API error (`H1Error`), 2 usage error, missing credentials or missing `--confirm`.
 - **Secrets:** credentials come only from `HACKERONE_USERNAME`/`HACKERONE_API_TOKEN` (or `H1_USERNAME`/`H1_API_TOKEN`). Never print, log, hard-code or commit them. Tests use dummy values such as `"u"`/`"t"`.
