@@ -362,6 +362,9 @@ def build_parser() -> argparse.ArgumentParser:
     json_p = argparse.ArgumentParser(add_help=False)
     json_p.add_argument("--json", action="store_true", help="Print raw JSON")
     page_p = argparse.ArgumentParser(add_help=False)
+    page_p.add_argument("--page", type=int, default=1)
+    page_p.add_argument("--size", type=int, default=25)
+    page_p.add_argument("--all", action="store_true", help="Fetch every page")
     paged = [json_p, page_p]
 
     p.add_argument("--version", action="version", version=f"h1cli {__version__}")
