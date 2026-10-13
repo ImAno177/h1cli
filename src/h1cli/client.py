@@ -24,6 +24,11 @@ OPEN_STATES = frozenset(
 )
 
 
+def _seg(value: Any) -> str:
+    """Encode one URL path segment; '/' and '..' tricks cannot escape it."""
+    return urllib.parse.quote(str(value), safe="")
+
+
 class H1Error(Exception):
     def __init__(self, message: str, status: Optional[int] = None, body: Any = None):
         super().__init__(message)
@@ -114,7 +119,7 @@ class H1Client:
         return self.get("/hackers/me/reports", **{"page[number]": page, "page[size]": size})
 
     def get_report(self, report_id: int | str) -> Any:
-        return self.get(f"/hackers/reports/{report_id}")
+        return self.get(f"/hackers/reports/{_seg(report_id)}")
 
     def create_report(self, attributes: Mapping[str, Any]) -> Any:
         return self.post(
@@ -127,11 +132,11 @@ class H1Client:
         return self.get("/hackers/programs", **{"page[number]": page, "page[size]": size})
 
     def get_program(self, handle: str) -> Any:
-        return self.get(f"/hackers/programs/{urllib.parse.quote(handle)}")
+        return self.get(f"/hackers/programs/{_seg(handle)}")
 
     def structured_scopes(self, handle: str, page: int = 1, size: int = 25) -> Any:
         return self.get(
-            f"/hackers/programs/{urllib.parse.quote(handle)}/structured_scopes",
+            f"/hackers/programs/{_seg(handle)}/structured_scopes",
             **{"page[number]": page, "page[size]": size},
         )
 
@@ -148,12 +153,12 @@ class H1Client:
 
     def weaknesses(self, handle: str, page: int = 1, size: int = 25) -> Any:
         return self.get(
-            f"/hackers/programs/{urllib.parse.quote(handle)}/weaknesses",
+            f"/hackers/programs/{_seg(handle)}/weaknesses",
             **{"page[number]": page, "page[size]": size},
         )
 
     def scope_exclusions(self, handle: str) -> Any:
-        return self.get(f"/hackers/programs/{urllib.parse.quote(handle)}/scope_exclusions")
+        return self.get(f"/hackers/programs/{_seg(handle)}/scope_exclusions")
 
     # --- Payments ---
     def balance(self) -> Any:
@@ -189,7 +194,7 @@ class H1Client:
         return self.get("/hackers/report_intents")
 
     def get_report_intent(self, intent_id: int | str) -> Any:
-        return self.get(f"/hackers/report_intents/{intent_id}")
+        return self.get(f"/hackers/report_intents/{_seg(intent_id)}")
 
     def create_report_intent(self, team_handle: str, description: str) -> Any:
         return self.post(
@@ -207,7 +212,7 @@ class H1Client:
 
     def update_report_intent(self, intent_id: int | str, description: str) -> Any:
         return self.patch(
-            f"/hackers/report_intents/{intent_id}",
+            f"/hackers/report_intents/{_seg(intent_id)}",
             {
                 "data": {
                     "type": "report-intent",
@@ -217,13 +222,13 @@ class H1Client:
         )
 
     def delete_report_intent(self, intent_id: int | str) -> Any:
-        return self.delete(f"/hackers/report_intents/{intent_id}")
+        return self.delete(f"/hackers/report_intents/{_seg(intent_id)}")
 
     def submit_report_intent(self, intent_id: int | str) -> Any:
-        return self.post(f"/hackers/report_intents/{intent_id}/submit", {})
+        return self.post(f"/hackers/report_intents/{_seg(intent_id)}/submit", {})
 
     def list_intent_attachments(self, intent_id: int | str) -> Any:
-        return self.get(f"/hackers/report_intents/{intent_id}/attachments")
+        return self.get(f"/hackers/report_intents/{_seg(intent_id)}/attachments")
 
     def delete_intent_attachment(self, intent_id: int | str, attachment_id: int | str) -> Any:
-        return self.delete(f"/hackers/report_intents/{intent_id}/attachments/{attachment_id}")
+        return self.delete(f"/hackers/report_intents/{_seg(intent_id)}/attachments/{_seg(attachment_id)}")
