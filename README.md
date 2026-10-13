@@ -41,7 +41,9 @@ Create a token under HackerOne → Settings → API Token. Never commit tokens.
 | `h1cli earnings` | `GET /hackers/payments/earnings` |
 | `h1cli payouts` | `GET /hackers/payments/payouts` |
 | `h1cli hacktivity [--query ...] [--sort ...]` | `GET /hackers/hacktivity` |
-| `h1cli intents list\|get\|create\|update\|delete\|submit\|attachments` | report intents |
+| `h1cli intents list\|get\|create\|update\|delete\|submit` | report intents |
+| `h1cli intents attachments list ID` | `GET /hackers/report_intents/{id}/attachments` |
+| `h1cli intents attachments delete ID ATTACHMENT_ID --confirm` | `DELETE /hackers/report_intents/{id}/attachments/{attachment_id}` |
 
 When filtering (`--all`, `--targets`, `--bounty-only`, `--type`), assets not eligible for submission are dropped unless `--include-ineligible` is given.
 
@@ -68,7 +70,7 @@ h1cli hacktivity --query 'team:tron_dao' --size 10
 |---------|-----|
 | **Webhooks** | Program/organization automation. Configured in program Settings → Automation → Webhooks. Documented under the [Customer/org API webhooks](https://api.hackerone.com/webhooks/), not the Hacker API. A personal hacker token cannot manage them. |
 | Organization admin APIs | Members, triage inbox as org, customer report management — need an **organization API token**. |
-| Multipart attachment **upload** to report intents | Not implemented yet (stdlib multipart); list/delete attachments are available. |
+| Multipart attachment **upload** to report intents | Not implemented yet (stdlib multipart); use `intents attachments list` / `delete`. |
 
 Rate limits (Hacker API): ~600 reads/min, ~25 writes / 20s.
 

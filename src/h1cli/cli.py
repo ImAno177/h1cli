@@ -297,7 +297,7 @@ def cmd_intents_list(client: H1Client, args: argparse.Namespace) -> int:
 
 def cmd_intents_get(client: H1Client, args: argparse.Namespace) -> int:
     data = client.get_report_intent(args.id)
-    _print_json(data) if args.json else _print_json(data)
+    _print_json(data)
     return 0
 
 
@@ -342,11 +342,28 @@ def cmd_intents_attachments(client: H1Client, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_intents_attachment_delete(client: H1Client, args: argparse.Namespace) -> int:
+    if not args.confirm:
+        print("Refusing to delete without --confirm.", file=sys.stderr)
+        return 2
+    data = client.delete_intent_attachment(args.id, args.attachment_id)
+    if data is not None:
+        _print_json(data)
+    else:
+        print("deleted")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="h1cli",
         description="CLI for the HackerOne Hacker API (personal token, HTTP Basic).",
     )
+    json_p = argparse.ArgumentParser(add_help=False)
+    json_p.add_argument("--json", action="store_true", help="Print raw JSON")
+    page_p = argparse.ArgumentParser(add_help=False)
+    paged = [json_p, page_p]
+
     p.add_argument("--version", action="version", version=f"h1cli {__version__}")
     sub = p.add_subparsers(dest="command", required=True)
 
@@ -356,20 +373,15 @@ def build_parser() -> argparse.ArgumentParser:
     # reports
     reports = sub.add_parser("reports", help="Your vulnerability reports")
     rsub = reports.add_subparsers(dest="reports_cmd", required=True)
-    rl = rsub.add_parser("list", help="List my reports")
+    rl = rsub.add_parser("list", help="List my reports", parents=paged)
     rl.add_argument("--state", help="Filter state, or 'open' for active states")
     rl.add_argument("--program", help="Filter by program handle")
-    rl.add_argument("--page", type=int, default=1)
-    rl.add_argument("--size", type=int, default=25)
-    rl.add_argument("--json", action="store_true")
-    rl.add_argument("--all", action="store_true", help="Fetch every page")
     rl.set_defaults(func=cmd_reports_list)
-    rg = rsub.add_parser("get", help="Get one report")
+    rg = rsub.add_parser("get", help="Get one report", parents=[json_p])
     rg.add_argument("id", type=int)
     rg.add_argument("--body", action="store_true", help="Print vulnerability_information")
-    rg.add_argument("--json", action="store_true")
     rg.set_defaults(func=cmd_reports_get)
-    rc = rsub.add_parser("create", help="Submit a report (requires --confirm)")
+    rc = rsub.add_parser("create", help="Submit a report (requires --confirm)", parents=[json_p])
     rc.add_argument("--program", required=True, help="team_handle")
     rc.add_argument("--title", required=True)
     rc.add_argument("--impact", required=True)
@@ -379,29 +391,19 @@ def build_parser() -> argparse.ArgumentParser:
     rc.add_argument("--weakness-id", type=int)
     rc.add_argument("--scope-id", type=int)
     rc.add_argument("--confirm", action="store_true")
-    rc.add_argument("--json", action="store_true")
     rc.set_defaults(func=cmd_reports_create)
 
     programs = sub.add_parser("programs", help="Programs visible to you")
     psub = programs.add_subparsers(dest="programs_cmd", required=True)
-    pl = psub.add_parser("list")
-    pl.add_argument("--page", type=int, default=1)
-    pl.add_argument("--size", type=int, default=25)
-    pl.add_argument("--json", action="store_true")
-    pl.add_argument("--all", action="store_true", help="Fetch every page")
+    pl = psub.add_parser("list", parents=paged)
     pl.set_defaults(func=cmd_programs_list)
-    pg = psub.add_parser("get")
+    pg = psub.add_parser("get", parents=[json_p])
     pg.add_argument("handle")
     pg.add_argument("--policy", action="store_true", help="Print policy markdown only")
-    pg.add_argument("--json", action="store_true")
     pg.set_defaults(func=cmd_program_get)
 
-    sc = sub.add_parser("scopes", help="Structured scopes for a program")
+    sc = sub.add_parser("scopes", help="Structured scopes for a program", parents=paged)
     sc.add_argument("handle")
-    sc.add_argument("--page", type=int, default=1)
-    sc.add_argument("--size", type=int, default=25)
-    sc.add_argument("--json", action="store_true")
-    sc.add_argument("--all", action="store_true", help="Fetch every page")
     sc.add_argument("--bounty-only", action="store_true", help="Only bounty-eligible assets")
     sc.add_argument("--type", help="Comma-separated asset types, e.g. URL,WILDCARD")
     sc.add_argument(
@@ -416,54 +418,34 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sc.set_defaults(func=cmd_scopes)
 
-    wk = sub.add_parser("weaknesses", help="Weaknesses for a program")
+    wk = sub.add_parser("weaknesses", help="Weaknesses for a program", parents=paged)
     wk.add_argument("handle")
-    wk.add_argument("--page", type=int, default=1)
-    wk.add_argument("--size", type=int, default=25)
-    wk.add_argument("--json", action="store_true")
-    wk.add_argument("--all", action="store_true", help="Fetch every page")
     wk.set_defaults(func=cmd_weaknesses)
 
-    ex = sub.add_parser("exclusions", help="Scope exclusions for a program")
+    ex = sub.add_parser("exclusions", help="Scope exclusions for a program", parents=[json_p])
     ex.add_argument("handle")
-    ex.add_argument("--json", action="store_true")
     ex.set_defaults(func=cmd_exclusions)
 
-    bal = sub.add_parser("balance", help="Payment balance")
-    bal.add_argument("--json", action="store_true")
+    bal = sub.add_parser("balance", help="Payment balance", parents=[json_p])
     bal.set_defaults(func=cmd_balance)
 
-    earn = sub.add_parser("earnings", help="Earnings list")
-    earn.add_argument("--page", type=int, default=1)
-    earn.add_argument("--size", type=int, default=25)
-    earn.add_argument("--json", action="store_true")
-    earn.add_argument("--all", action="store_true", help="Fetch every page")
+    earn = sub.add_parser("earnings", help="Earnings list", parents=paged)
     earn.set_defaults(func=cmd_earnings)
 
-    pay = sub.add_parser("payouts", help="Payouts list")
-    pay.add_argument("--page", type=int, default=1)
-    pay.add_argument("--size", type=int, default=25)
-    pay.add_argument("--json", action="store_true")
-    pay.add_argument("--all", action="store_true", help="Fetch every page")
+    pay = sub.add_parser("payouts", help="Payouts list", parents=paged)
     pay.set_defaults(func=cmd_payouts)
 
-    hk = sub.add_parser("hacktivity", help="Public hacktivity search")
+    hk = sub.add_parser("hacktivity", help="Public hacktivity search", parents=paged)
     hk.add_argument("--query", help="Lucene queryString")
     hk.add_argument("--sort", help="e.g. -disclosed_at")
-    hk.add_argument("--page", type=int, default=1)
-    hk.add_argument("--size", type=int, default=25)
-    hk.add_argument("--json", action="store_true")
-    hk.add_argument("--all", action="store_true", help="Fetch every page")
     hk.set_defaults(func=cmd_hacktivity)
 
     intents = sub.add_parser("intents", help="Report intents (Report Assistant)")
     isub = intents.add_subparsers(dest="intents_cmd", required=True)
-    il = isub.add_parser("list")
-    il.add_argument("--json", action="store_true")
+    il = isub.add_parser("list", parents=[json_p])
     il.set_defaults(func=cmd_intents_list)
-    ig = isub.add_parser("get")
+    ig = isub.add_parser("get", parents=[json_p])
     ig.add_argument("id", type=int)
-    ig.add_argument("--json", action="store_true")
     ig.set_defaults(func=cmd_intents_get)
     ic = isub.add_parser("create")
     ic.add_argument("--program", required=True)
@@ -483,9 +465,16 @@ def build_parser() -> argparse.ArgumentParser:
     isubm.add_argument("id", type=int)
     isubm.add_argument("--confirm", action="store_true")
     isubm.set_defaults(func=cmd_intents_submit)
-    iatt = isub.add_parser("attachments")
-    iatt.add_argument("id", type=int)
-    iatt.set_defaults(func=cmd_intents_attachments)
+    iatt = isub.add_parser("attachments", help="Report intent attachments")
+    iasub = iatt.add_subparsers(dest="attachments_cmd", required=True)
+    ial = iasub.add_parser("list", help="List attachments of an intent")
+    ial.add_argument("id", type=int)
+    ial.set_defaults(func=cmd_intents_attachments)
+    iad = iasub.add_parser("delete", help="Delete one attachment (requires --confirm)")
+    iad.add_argument("id", type=int)
+    iad.add_argument("attachment_id", type=int)
+    iad.add_argument("--confirm", action="store_true")
+    iad.set_defaults(func=cmd_intents_attachment_delete)
 
     return p
 
