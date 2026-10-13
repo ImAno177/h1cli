@@ -1,24 +1,9 @@
 import json
-from urllib.parse import parse_qs, urlparse
 
 import pytest
 
-from h1cli import cli
 from h1cli.client import H1Client
-
-
-class FakeResponse:
-    def __init__(self, payload):
-        self._payload = payload
-
-    def read(self):
-        return json.dumps(self._payload).encode()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *a):
-        return False
+from conftest import FakeOpener
 
 
 def scope(i, ident, typ="URL", bounty=True, submit=True):
@@ -34,51 +19,42 @@ PAGES = {
 }
 
 
-class PagedOpener:
-    def __init__(self):
-        self.urls = []
-
-    def open(self, req, timeout=60):
-        self.urls.append(req.full_url)
-        q = parse_qs(urlparse(req.full_url).query)
-        page = int(q["page[number]"][0])
-        links = {"next": "x"} if page < 2 else {}
-        return FakeResponse({"data": PAGES.get(page, []), "links": links})
+def paged(req, q):
+    page = int(q["page[number]"])
+    return {"data": PAGES.get(page, []), "links": {"next": "x"} if page < 2 else {}}
 
 
-@pytest.fixture
-def opener(monkeypatch):
-    op = PagedOpener()
-    monkeypatch.setattr(cli, "H1Client", lambda: H1Client(username="u", token="t", opener=op))
-    return op
+@pytest.fixture(autouse=True)
+def _paged(opener):
+    opener.handler = paged
 
 
 def test_all_structured_scopes_follows_pages():
-    op = PagedOpener()
+    op = FakeOpener(paged)
     items = H1Client(username="u", token="t", opener=op).all_structured_scopes("acme", size=3)
     assert [s["id"] for s in items] == ["1", "2", "3", "4", "5"]
     assert len(op.urls) == 2
     assert "/hackers/programs/acme/structured_scopes" in op.urls[0]
 
 
-def test_targets_dedup_and_drop_ineligible(opener, capsys):
-    assert cli.main(["scopes", "acme", "--targets"]) == 0
+def test_targets_dedup_and_drop_ineligible(run, opener, capsys):
+    assert run(*["scopes", "acme", "--targets"]) == 0
     out = capsys.readouterr().out.split()
     assert out == ["a.example.com", "*.example.com", "com.example.app"]
 
 
-def test_targets_bounty_and_type_filter(opener, capsys):
-    assert cli.main(["scopes", "acme", "--targets", "--bounty-only", "--type", "wildcard"]) == 0
+def test_targets_bounty_and_type_filter(run, opener, capsys):
+    assert run(*["scopes", "acme", "--targets", "--bounty-only", "--type", "wildcard"]) == 0
     assert capsys.readouterr().out.split() == ["*.example.com"]
 
 
-def test_include_ineligible_json(opener, capsys):
-    assert cli.main(["scopes", "acme", "--all", "--include-ineligible", "--json"]) == 0
+def test_include_ineligible_json(run, opener, capsys):
+    assert run(*["scopes", "acme", "--all", "--include-ineligible", "--json"]) == 0
     data = json.loads(capsys.readouterr().out)
     assert [s["id"] for s in data["data"]] == ["1", "2", "3", "4", "5"]
 
 
-def test_plain_scopes_unchanged(opener, capsys):
-    assert cli.main(["scopes", "acme"]) == 0
+def test_plain_scopes_unchanged(run, opener, capsys):
+    assert run(*["scopes", "acme"]) == 0
     out = capsys.readouterr().out
     assert "a.example.com" in out and len(opener.urls) == 1
