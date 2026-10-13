@@ -135,6 +135,17 @@ class H1Client:
             **{"page[number]": page, "page[size]": size},
         )
 
+    def all_structured_scopes(self, handle: str, size: int = 100, max_pages: int = 50) -> list:
+        """Fetch every structured scope for a program, following pagination."""
+        items: list = []
+        for page in range(1, max_pages + 1):
+            data = self.structured_scopes(handle, page=page, size=size) or {}
+            batch = list(data.get("data") or [])
+            items.extend(batch)
+            if not (data.get("links") or {}).get("next") or not batch:
+                break
+        return items
+
     def weaknesses(self, handle: str, page: int = 1, size: int = 25) -> Any:
         return self.get(
             f"/hackers/programs/{urllib.parse.quote(handle)}/weaknesses",

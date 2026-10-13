@@ -151,8 +151,39 @@ def cmd_program_get(client: H1Client, args: argparse.Namespace) -> int:
     return 0
 
 
+def _filter_scopes(items: list, args: argparse.Namespace) -> list:
+    types = {t.strip().upper() for t in (args.type or "").split(",") if t.strip()}
+    out = []
+    for s in items:
+        a = s.get("attributes") or {}
+        if args.bounty_only and not a.get("eligible_for_bounty"):
+            continue
+        if not args.include_ineligible and a.get("eligible_for_submission") is False:
+            continue
+        if types and str(a.get("asset_type") or "").upper() not in types:
+            continue
+        out.append(s)
+    return out
+
+
 def cmd_scopes(client: H1Client, args: argparse.Namespace) -> int:
-    data = client.structured_scopes(args.handle, page=args.page, size=args.size)
+    filtering = args.all or args.targets or args.bounty_only or args.type
+    if filtering:
+        items = client.all_structured_scopes(args.handle) if (args.all or args.targets) else list(
+            (client.structured_scopes(args.handle, page=args.page, size=args.size) or {}).get("data") or []
+        )
+        items = _filter_scopes(items, args)
+        if args.targets:
+            seen = set()
+            for s in items:
+                ident = ((s.get("attributes") or {}).get("asset_identifier") or "").strip()
+                if ident and ident not in seen:
+                    seen.add(ident)
+                    print(ident)
+            return 0
+        data = {"data": items}
+    else:
+        data = client.structured_scopes(args.handle, page=args.page, size=args.size)
     if args.json:
         _print_json(data)
         return 0
@@ -357,6 +388,19 @@ def build_parser() -> argparse.ArgumentParser:
     sc.add_argument("--page", type=int, default=1)
     sc.add_argument("--size", type=int, default=25)
     sc.add_argument("--json", action="store_true")
+    sc.add_argument("--all", action="store_true", help="Fetch every page")
+    sc.add_argument("--bounty-only", action="store_true", help="Only bounty-eligible assets")
+    sc.add_argument("--type", help="Comma-separated asset types, e.g. URL,WILDCARD")
+    sc.add_argument(
+        "--include-ineligible",
+        action="store_true",
+        help="Keep assets not eligible for submission (dropped by default when filtering)",
+    )
+    sc.add_argument(
+        "--targets",
+        action="store_true",
+        help="Print deduplicated asset identifiers only, one per line (implies --all)",
+    )
     sc.set_defaults(func=cmd_scopes)
 
     wk = sub.add_parser("weaknesses", help="Weaknesses for a program")

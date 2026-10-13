@@ -34,7 +34,7 @@ Create a token under HackerOne → Settings → API Token. Never commit tokens.
 | `h1cli reports create ... --confirm` | `POST /hackers/reports` |
 | `h1cli programs list` | `GET /hackers/programs` |
 | `h1cli programs get HANDLE [--policy]` | `GET /hackers/programs/{handle}` |
-| `h1cli scopes HANDLE` | `GET /hackers/programs/{handle}/structured_scopes` |
+| `h1cli scopes HANDLE [--all] [--bounty-only] [--type URL,WILDCARD] [--targets]` | `GET /hackers/programs/{handle}/structured_scopes` |
 | `h1cli weaknesses HANDLE` | `GET /hackers/programs/{handle}/weaknesses` |
 | `h1cli exclusions HANDLE` | `GET /hackers/programs/{handle}/scope_exclusions` |
 | `h1cli balance` | `GET /hackers/payments/balance` |
@@ -42,6 +42,8 @@ Create a token under HackerOne → Settings → API Token. Never commit tokens.
 | `h1cli payouts` | `GET /hackers/payments/payouts` |
 | `h1cli hacktivity [--query ...] [--sort ...]` | `GET /hackers/hacktivity` |
 | `h1cli intents list\|get\|create\|update\|delete\|submit\|attachments` | report intents |
+
+When filtering (`--all`, `--targets`, `--bounty-only`, `--type`), assets not eligible for submission are dropped unless `--include-ineligible` is given.
 
 Destructive / submitting commands require `--confirm`.
 
@@ -53,6 +55,8 @@ h1cli reports list --state open
 h1cli reports get 4103144 --body
 h1cli programs get tron_dao --policy | head
 h1cli scopes tron_dao
+# export in-scope, bounty-eligible web targets (all pages) for recon tools
+h1cli scopes tron_dao --targets --bounty-only --type URL,WILDCARD > targets.txt
 h1cli hacktivity --query 'team:tron_dao' --size 10
 ```
 
