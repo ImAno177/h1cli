@@ -2,7 +2,6 @@
 import os
 import subprocess
 import sys
-import tomllib
 from importlib import import_module
 from pathlib import Path
 
@@ -18,7 +17,9 @@ def _env():
 
 
 def test_entry_point_resolves_to_cli_main():
-    target = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["scripts"]["h1cli"]
+    # no tomllib on Python 3.10; the line is simple enough to read directly
+    line = next(l for l in (ROOT / "pyproject.toml").read_text().splitlines() if l.startswith("h1cli ="))
+    target = line.split("=", 1)[1].strip().strip('"')
     mod, func = target.split(":")
     assert target == "h1cli.cli:main"
     assert callable(getattr(import_module(mod), func))
