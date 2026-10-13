@@ -9,10 +9,11 @@ import ssl
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any, Mapping, MutableMapping, Optional
+from typing import Any, Callable, Mapping, MutableMapping, Optional
 
 
 BASE_URL = "https://api.hackerone.com/v1"
+MAX_PAGES = 50  # 50 pages x 100 items; well under the ~600 reads/min limit
 OPEN_STATES = frozenset(
     {
         "new",
@@ -114,6 +115,22 @@ class H1Client:
     def delete(self, path: str) -> Any:
         return self._request("DELETE", path)
 
+    def paginate(
+        self,
+        fetch_page: Callable[[int, int], Any],
+        size: int = 100,
+        max_pages: int = MAX_PAGES,
+    ) -> list:
+        """Call fetch_page(page, size) until links.next is gone; capped at max_pages."""
+        items: list = []
+        for page in range(1, max_pages + 1):
+            data = fetch_page(page, size) or {}
+            batch = list(data.get("data") or [])
+            items.extend(batch)
+            if not batch or not (data.get("links") or {}).get("next"):
+                break
+        return items
+
     # --- Reports ---
     def list_reports(self, page: int = 1, size: int = 25) -> Any:
         return self.get("/hackers/me/reports", **{"page[number]": page, "page[size]": size})
@@ -142,14 +159,11 @@ class H1Client:
 
     def all_structured_scopes(self, handle: str, size: int = 100, max_pages: int = 50) -> list:
         """Fetch every structured scope for a program, following pagination."""
-        items: list = []
-        for page in range(1, max_pages + 1):
-            data = self.structured_scopes(handle, page=page, size=size) or {}
-            batch = list(data.get("data") or [])
-            items.extend(batch)
-            if not (data.get("links") or {}).get("next") or not batch:
-                break
-        return items
+        return self.paginate(
+            lambda page, sz: self.structured_scopes(handle, page=page, size=sz),
+            size=size,
+            max_pages=max_pages,
+        )
 
     def weaknesses(self, handle: str, page: int = 1, size: int = 25) -> Any:
         return self.get(

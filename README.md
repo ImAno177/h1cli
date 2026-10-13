@@ -45,13 +45,15 @@ Create a token under HackerOne → Settings → API Token. Never commit tokens.
 
 When filtering (`--all`, `--targets`, `--bounty-only`, `--type`), assets not eligible for submission are dropped unless `--include-ineligible` is given.
 
+List commands (`reports list`, `programs list`, `scopes`, `weaknesses`, `earnings`, `payouts`, `hacktivity`) accept `--all` to follow pagination (capped at 50 pages of 100). Without it only one page is fetched, and `reports list --state/--program` filter that page only.
+
 Destructive / submitting commands require `--confirm`.
 
 ### Examples
 
 ```bash
 h1cli whoami
-h1cli reports list --state open
+h1cli reports list --state open --all
 h1cli reports get 4103144 --body
 h1cli programs get tron_dao --policy | head
 h1cli scopes tron_dao

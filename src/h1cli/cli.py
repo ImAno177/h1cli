@@ -23,6 +23,13 @@ def _program_handle(item: dict) -> str:
     return attrs.get("handle") or prog.get("id") or "-"
 
 
+def _pages(client: H1Client, args: argparse.Namespace, fetch_page) -> Any:
+    """One page by default; every page (as {"data": [...]}) with --all."""
+    if getattr(args, "all", False):
+        return {"data": client.paginate(fetch_page)}
+    return fetch_page(args.page, args.size)
+
+
 def _trunc(s: str, n: int = 72) -> str:
     s = s.replace("\n", " ").strip()
     return s if len(s) <= n else s[: n - 1] + "…"
@@ -40,7 +47,7 @@ def cmd_whoami(client: H1Client, _args: argparse.Namespace) -> int:
 
 
 def cmd_reports_list(client: H1Client, args: argparse.Namespace) -> int:
-    data = client.list_reports(page=args.page, size=args.size)
+    data = _pages(client, args, lambda p, s: client.list_reports(page=p, size=s))
     items = list(data.get("data") or [])
     if args.state == "open":
         items = [r for r in items if (r.get("attributes") or {}).get("state") in OPEN_STATES]
@@ -113,7 +120,7 @@ def cmd_reports_create(client: H1Client, args: argparse.Namespace) -> int:
 
 
 def cmd_programs_list(client: H1Client, args: argparse.Namespace) -> int:
-    data = client.list_programs(page=args.page, size=args.size)
+    data = _pages(client, args, lambda p, s: client.list_programs(page=p, size=s))
     if args.json:
         _print_json(data)
         return 0
@@ -198,7 +205,9 @@ def cmd_scopes(client: H1Client, args: argparse.Namespace) -> int:
 
 
 def cmd_weaknesses(client: H1Client, args: argparse.Namespace) -> int:
-    data = client.weaknesses(args.handle, page=args.page, size=args.size)
+    data = _pages(
+        client, args, lambda p, s: client.weaknesses(args.handle, page=p, size=s)
+    )
     if args.json:
         _print_json(data)
         return 0
@@ -229,7 +238,7 @@ def cmd_balance(client: H1Client, args: argparse.Namespace) -> int:
 
 
 def cmd_earnings(client: H1Client, args: argparse.Namespace) -> int:
-    data = client.earnings(page=args.page, size=args.size)
+    data = _pages(client, args, lambda p, s: client.earnings(page=p, size=s))
     if args.json:
         _print_json(data)
         return 0
@@ -240,7 +249,7 @@ def cmd_earnings(client: H1Client, args: argparse.Namespace) -> int:
 
 
 def cmd_payouts(client: H1Client, args: argparse.Namespace) -> int:
-    data = client.payouts(page=args.page, size=args.size)
+    data = _pages(client, args, lambda p, s: client.payouts(page=p, size=s))
     if args.json:
         _print_json(data)
         return 0
@@ -258,8 +267,10 @@ def cmd_payouts(client: H1Client, args: argparse.Namespace) -> int:
 
 
 def cmd_hacktivity(client: H1Client, args: argparse.Namespace) -> int:
-    data = client.hacktivity(
-        query=args.query, sort=args.sort, page=args.page, size=args.size
+    data = _pages(
+        client,
+        args,
+        lambda p, s: client.hacktivity(query=args.query, sort=args.sort, page=p, size=s),
     )
     if args.json:
         _print_json(data)
@@ -351,6 +362,7 @@ def build_parser() -> argparse.ArgumentParser:
     rl.add_argument("--page", type=int, default=1)
     rl.add_argument("--size", type=int, default=25)
     rl.add_argument("--json", action="store_true")
+    rl.add_argument("--all", action="store_true", help="Fetch every page")
     rl.set_defaults(func=cmd_reports_list)
     rg = rsub.add_parser("get", help="Get one report")
     rg.add_argument("id", type=int)
@@ -376,6 +388,7 @@ def build_parser() -> argparse.ArgumentParser:
     pl.add_argument("--page", type=int, default=1)
     pl.add_argument("--size", type=int, default=25)
     pl.add_argument("--json", action="store_true")
+    pl.add_argument("--all", action="store_true", help="Fetch every page")
     pl.set_defaults(func=cmd_programs_list)
     pg = psub.add_parser("get")
     pg.add_argument("handle")
@@ -408,6 +421,7 @@ def build_parser() -> argparse.ArgumentParser:
     wk.add_argument("--page", type=int, default=1)
     wk.add_argument("--size", type=int, default=25)
     wk.add_argument("--json", action="store_true")
+    wk.add_argument("--all", action="store_true", help="Fetch every page")
     wk.set_defaults(func=cmd_weaknesses)
 
     ex = sub.add_parser("exclusions", help="Scope exclusions for a program")
@@ -423,12 +437,14 @@ def build_parser() -> argparse.ArgumentParser:
     earn.add_argument("--page", type=int, default=1)
     earn.add_argument("--size", type=int, default=25)
     earn.add_argument("--json", action="store_true")
+    earn.add_argument("--all", action="store_true", help="Fetch every page")
     earn.set_defaults(func=cmd_earnings)
 
     pay = sub.add_parser("payouts", help="Payouts list")
     pay.add_argument("--page", type=int, default=1)
     pay.add_argument("--size", type=int, default=25)
     pay.add_argument("--json", action="store_true")
+    pay.add_argument("--all", action="store_true", help="Fetch every page")
     pay.set_defaults(func=cmd_payouts)
 
     hk = sub.add_parser("hacktivity", help="Public hacktivity search")
@@ -437,6 +453,7 @@ def build_parser() -> argparse.ArgumentParser:
     hk.add_argument("--page", type=int, default=1)
     hk.add_argument("--size", type=int, default=25)
     hk.add_argument("--json", action="store_true")
+    hk.add_argument("--all", action="store_true", help="Fetch every page")
     hk.set_defaults(func=cmd_hacktivity)
 
     intents = sub.add_parser("intents", help="Report intents (Report Assistant)")
